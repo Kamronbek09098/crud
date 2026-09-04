@@ -1,0 +1,55 @@
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+
+@Injectable()
+export class UserService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(dto: CreateUserDto) {
+    const existing = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
+    if (existing) {
+      throw new ConflictException("Bu telefon raqami allaqachon ro'yxatdan o'tgan");
+    }
+    return this.prisma.user.create({ data: dto });
+  }
+
+  findAll() {
+    return this.prisma.user.findMany();
+  }
+
+  async findOne(id: number) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`ID: ${id} bo'yicha user topilmadi`);
+    }
+    return user;
+  }
+
+  async update(id: number, dto: UpdateUserDto) {
+    await this.findOne(id);
+
+    if (dto.phone) {
+      const existing = await this.prisma.user.findUnique({
+        where: { phone: dto.phone },
+      });
+      if (existing && existing.id !== id) {
+        throw new ConflictException("Bu telefon raqami allaqachon ro'yxatdan o'tgan");
+      }
+    }
+
+    return this.prisma.user.update({ where: { id }, data: dto });
+  }
+
+  async remove(id: number) {
+    await this.findOne(id);
+    return this.prisma.user.delete({ where: { id } });
+  }
+}
